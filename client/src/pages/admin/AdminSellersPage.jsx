@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Store, CheckCircle, XCircle, Clock, MapPin, Phone } from 'lucide-react';
+import { Store, MapPin, Phone, X } from 'lucide-react';
 import AdminSidebar from '../../components/dashboard/AdminSidebar';
+import { useToast } from '../../context/ToastContext';
 import api from '../../services/api';
 
 export default function AdminSellersPage() {
+  const { showToast } = useToast();
   const [sellers, setSellers] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState('');
+
+  const [rejectingShop, setRejectingShop] = useState(null);
+  const [rejectReason, setRejectReason] = useState('Incomplete craft documentation');
 
   const fetchSellers = async () => {
     try {
@@ -35,28 +39,29 @@ export default function AdminSellersPage() {
     try {
       const res = await api.patch(`/admin/sellers/${shopId}/approve`);
       if (res.data.success) {
-        setMsg(`Approved "${shopName}"!`);
-        setTimeout(() => setMsg(''), 3000);
+        showToast(`Approved "${shopName}"!`, 'success');
         fetchSellers();
       }
     } catch (err) {
-      alert(err.message || 'Failed to approve seller.');
+      showToast(err.message || 'Failed to approve seller.', 'error');
     }
   };
 
-  const handleReject = async (shopId, shopName) => {
-    const reason = prompt(`Enter rejection reason for "${shopName}":`, 'Incomplete craft documentation');
-    if (!reason) return;
+  const handleConfirmReject = async (e) => {
+    e.preventDefault();
+    if (!rejectingShop) return;
 
     try {
-      const res = await api.patch(`/admin/sellers/${shopId}/reject`, { reason });
+      const res = await api.patch(`/admin/sellers/${rejectingShop._id}/reject`, {
+        reason: rejectReason
+      });
       if (res.data.success) {
-        setMsg(`Rejected "${shopName}".`);
-        setTimeout(() => setMsg(''), 3000);
+        showToast(`Rejected "${rejectingShop.shopName}".`, 'info');
+        setRejectingShop(null);
         fetchSellers();
       }
     } catch (err) {
-      alert(err.message || 'Failed to reject seller.');
+      showToast(err.message || 'Failed to reject seller.', 'error');
     }
   };
 
@@ -67,6 +72,9 @@ export default function AdminSellersPage() {
       <main className="flex-1 p-6 sm:p-10 max-w-7xl overflow-y-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-8 border-b border-stone-200 gap-4">
           <div>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-[#A3481D] block mb-0.5">
+              Vendor Verification
+            </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900">
               Artisan Shop Approvals
             </h1>
@@ -80,7 +88,7 @@ export default function AdminSellersPage() {
               <button
                 key={st}
                 onClick={() => setFilterStatus(st)}
-                className={`py-1.5 px-3 rounded-xl text-xs font-bold capitalize transition-colors ${
+                className={`py-2 px-3.5 rounded-xl text-xs font-bold capitalize transition-colors cursor-pointer ${
                   filterStatus === st
                     ? 'bg-[#A3481D] text-white shadow-2xs'
                     : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
@@ -91,13 +99,6 @@ export default function AdminSellersPage() {
             ))}
           </div>
         </div>
-
-        {msg && (
-          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" />
-            <span>{msg}</span>
-          </div>
-        )}
 
         {loading ? (
           <div className="bg-white p-8 rounded-3xl border border-stone-200 animate-pulse h-64" />
@@ -110,14 +111,14 @@ export default function AdminSellersPage() {
               >
                 <div>
                   <div className="flex items-start justify-between gap-4 mb-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3.5">
                       <img
                         src={s.logo || '/images/products/wooden_elephant.jpg'}
                         alt={s.shopName}
-                        className="w-12 h-12 rounded-xl object-cover border border-stone-200 shrink-0"
+                        className="w-13 h-13 rounded-2xl object-cover border border-stone-200 shrink-0"
                       />
                       <div>
-                        <h3 className="font-bold text-stone-900 text-base">
+                        <h3 className="font-extrabold text-stone-900 text-base">
                           {s.shopName}
                         </h3>
                         <p className="text-xs text-stone-500">
@@ -143,7 +144,7 @@ export default function AdminSellersPage() {
                     {s.description}
                   </p>
 
-                  <div className="flex items-center gap-4 text-xs text-stone-500">
+                  <div className="flex items-center gap-4 text-xs text-stone-500 font-medium">
                     <span className="flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5 text-[#A3481D]" />
                       {s.city}, {s.district}
@@ -155,8 +156,8 @@ export default function AdminSellersPage() {
                   </div>
 
                   {s.rejectionReason && (
-                    <div className="mt-2 p-2 rounded-xl bg-rose-50 border border-rose-200 text-[11px] text-rose-800">
-                      Reason: {s.rejectionReason}
+                    <div className="mt-3 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-[11px] text-rose-800">
+                      Rejection Reason: {s.rejectionReason}
                     </div>
                   )}
                 </div>
@@ -165,15 +166,18 @@ export default function AdminSellersPage() {
                   {s.approvalStatus !== 'approved' && (
                     <button
                       onClick={() => handleApprove(s._id, s.shopName)}
-                      className="py-1.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-2xs"
+                      className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-2xs cursor-pointer"
                     >
-                      Approve Shop
+                      Approve Studio
                     </button>
                   )}
                   {s.approvalStatus !== 'rejected' && (
                     <button
-                      onClick={() => handleReject(s._id, s.shopName)}
-                      className="py-1.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition-colors shadow-2xs"
+                      onClick={() => {
+                        setRejectingShop(s);
+                        setRejectReason('Incomplete craft documentation');
+                      }}
+                      className="py-2 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition-colors shadow-2xs cursor-pointer"
                     >
                       Reject Application
                     </button>
@@ -191,6 +195,54 @@ export default function AdminSellersPage() {
             <p className="text-xs text-stone-500">
               New artisan shop registration submissions will be displayed here.
             </p>
+          </div>
+        )}
+
+        {/* Reject Modal */}
+        {rejectingShop && (
+          <div className="fixed inset-0 z-50 bg-stone-950/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 border border-stone-200 shadow-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-extrabold text-stone-900 text-base">
+                  Reject "{rejectingShop.shopName}"
+                </h3>
+                <button
+                  onClick={() => setRejectingShop(null)}
+                  className="text-stone-400 hover:text-stone-700"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={handleConfirmReject} className="space-y-4 text-xs">
+                <div>
+                  <label className="font-bold text-stone-700 block mb-1">
+                    Reason for Rejection *
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    className="w-full bg-[#FAF8F5] border border-stone-200 rounded-xl p-3 text-xs"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRejectingShop(null)}
+                    className="py-2 px-4 border border-stone-300 rounded-xl font-bold text-stone-600 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="py-2 px-5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl cursor-pointer"
+                  >
+                    Confirm Rejection
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </main>

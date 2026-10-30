@@ -10,7 +10,8 @@ import {
   AlertCircle,
   Check,
   X,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import SellerSidebar from '../../components/dashboard/SellerSidebar';
 import { useToast } from '../../context/ToastContext';
@@ -22,12 +23,14 @@ export default function SellerProductsPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchFilter, setSearchFilter] = useState('');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(
     searchParams.get('action') === 'new'
   );
   const [editingProduct, setEditingProduct] = useState(null);
+  const [confirmDeleteProd, setConfirmDeleteProd] = useState(null);
 
   // Form Fields
   const [name, setName] = useState('');
@@ -109,7 +112,6 @@ export default function SellerProductsPage() {
         showToast('Image uploaded to Cloudinary as WebP successfully!', 'success');
       }
     } catch (err) {
-      alert(err.message || 'Image upload to Cloudinary failed.');
       showToast('Upload failed: ' + (err.message || 'Unknown error'), 'error');
     } finally {
       setUploading(false);
@@ -138,10 +140,10 @@ export default function SellerProductsPage() {
 
       if (editingProduct) {
         await api.patch(`/products/${editingProduct._id}`, payload);
-        showToast('Product updated in database successfully!', 'success');
+        showToast(`Updated "${name}" successfully!`, 'success');
       } else {
         await api.post('/products', payload);
-        showToast('Product created with Cloudinary WebP images!', 'success');
+        showToast(`Published "${name}" to marketplace!`, 'success');
       }
 
       setIsModalOpen(false);
@@ -153,18 +155,24 @@ export default function SellerProductsPage() {
     }
   };
 
-  const handleDeleteProduct = async (prodId) => {
-    if (!window.confirm('Are you sure you want to delete this product?')) {
-      return;
-    }
-
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteProd) return;
     try {
-      await api.delete(`/products/${prodId}`);
+      await api.delete(`/products/${confirmDeleteProd._id}`);
+      showToast(`Deleted "${confirmDeleteProd.name}"`, 'info');
+      setConfirmDeleteProd(null);
       fetchProducts();
     } catch (err) {
-      alert(err.message || 'Failed to delete product.');
+      showToast(err.message || 'Failed to delete product.', 'error');
     }
   };
+
+  const filteredProducts = products.filter(
+    (p) =>
+      !searchFilter.trim() ||
+      p.name?.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      p.category?.name?.toLowerCase().includes(searchFilter.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen flex bg-[#FAF8F5]">
@@ -173,27 +181,43 @@ export default function SellerProductsPage() {
       <main className="flex-1 p-6 sm:p-10 max-w-7xl overflow-y-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-8 border-b border-stone-200 gap-4">
           <div>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-[#A3481D] block mb-0.5">
+              Workshop Catalog
+            </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900">
-              My Product Listings
+              My Product Listings ({products.length})
             </h1>
             <p className="text-xs text-stone-500 mt-1">
               Manage your handcrafted goods, prices, and inventory levels.
             </p>
           </div>
 
-          <button
-            onClick={openAddModal}
-            className="inline-flex items-center gap-2 py-2.5 px-5 bg-[#A3481D] hover:bg-[#8B3B14] text-white text-xs font-bold rounded-xl shadow-xs transition-colors self-start sm:self-auto"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add New Craft</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative w-full sm:w-60">
+              <input
+                type="text"
+                placeholder="Filter your crafts..."
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="w-full bg-white border border-stone-200 rounded-xl py-2.5 pl-9 pr-4 text-xs"
+              />
+              <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-stone-400" />
+            </div>
+
+            <button
+              onClick={openAddModal}
+              className="inline-flex items-center gap-2 py-2.5 px-5 bg-[#A3481D] hover:bg-[#8B3B14] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer shimmer-button"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add New Craft</span>
+            </button>
+          </div>
         </div>
 
         {/* Product Table */}
         {loading ? (
           <div className="bg-white p-8 rounded-3xl border border-stone-200 animate-pulse h-64" />
-        ) : products.length > 0 ? (
+        ) : filteredProducts.length > 0 ? (
           <div className="bg-white rounded-3xl border border-stone-200/90 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-stone-600">
@@ -208,7 +232,7 @@ export default function SellerProductsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
-                  {products.map((prod) => (
+                  {filteredProducts.map((prod) => (
                     <tr key={prod._id} className="hover:bg-stone-50/80 transition-colors">
                       <td className="p-4 pl-6">
                         <div className="flex items-center gap-3">
@@ -224,13 +248,13 @@ export default function SellerProductsPage() {
                             <span className="font-bold text-stone-900 block line-clamp-1">
                               {prod.name}
                             </span>
-                            <span className="text-[11px] text-stone-400">
-                              Rating: ★ {prod.rating || '4.8'}
+                            <span className="text-[11px] text-amber-600 font-semibold">
+                              ★ {prod.rating || '4.8'} ({prod.reviewCount || '12'})
                             </span>
                           </div>
                         </div>
                       </td>
-                      <td className="p-4 font-medium text-stone-700">
+                      <td className="p-4 font-semibold text-stone-700">
                         {prod.category?.name || 'Handicrafts'}
                       </td>
                       <td className="p-4 font-extrabold text-[#A3481D]">
@@ -239,9 +263,11 @@ export default function SellerProductsPage() {
                       <td className="p-4">
                         <span
                           className={`font-bold px-2.5 py-0.5 rounded-full text-[11px] ${
-                            prod.stock > 0
+                            prod.stock > 5
                               ? 'bg-emerald-50 text-emerald-700'
-                              : 'bg-red-50 text-red-700'
+                              : prod.stock > 0
+                              ? 'bg-amber-50 text-amber-700'
+                              : 'bg-rose-50 text-rose-700'
                           }`}
                         >
                           {prod.stock} in stock
@@ -253,21 +279,21 @@ export default function SellerProductsPage() {
                             prod.isActive ? 'bg-emerald-500' : 'bg-stone-400'
                           }`}
                         />
-                        <span className="capitalize">
+                        <span className="capitalize font-medium">
                           {prod.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="p-4 pr-6 text-right space-x-2">
+                      <td className="p-4 pr-6 text-right space-x-1.5">
                         <button
                           onClick={() => openEditModal(prod)}
-                          className="p-1.5 text-stone-600 hover:text-[#A3481D] hover:bg-stone-100 rounded-lg transition-colors"
+                          className="p-2 text-stone-600 hover:text-[#A3481D] hover:bg-stone-100 rounded-xl transition-colors cursor-pointer"
                           title="Edit Product"
                         >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteProduct(prod._id)}
-                          className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                          onClick={() => setConfirmDeleteProd(prod)}
+                          className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                           title="Delete Product"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -283,23 +309,54 @@ export default function SellerProductsPage() {
           <div className="text-center py-16 bg-white rounded-3xl border border-stone-200 shadow-xs p-8">
             <Package className="h-12 w-12 text-stone-300 mx-auto mb-3" />
             <h3 className="font-bold text-stone-900 text-base mb-1">
-              No products created yet
+              No products matched
             </h3>
             <p className="text-xs text-stone-500 mb-6">
               Start publishing your artisan creations to showcase them on the CraftLK marketplace.
             </p>
             <button
               onClick={openAddModal}
-              className="py-2.5 px-5 bg-[#A3481D] text-white text-xs font-bold rounded-xl"
+              className="py-2.5 px-5 bg-[#A3481D] text-white text-xs font-bold rounded-xl cursor-pointer"
             >
               Add First Product
             </button>
           </div>
         )}
 
+        {/* Delete Confirmation Modal */}
+        {confirmDeleteProd && (
+          <div className="fixed inset-0 z-50 bg-stone-950/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 border border-stone-200 shadow-xl space-y-4">
+              <div className="flex items-center gap-2.5 text-rose-600">
+                <AlertTriangle className="h-5 w-5" />
+                <h3 className="font-extrabold text-stone-900 text-base">
+                  Delete "{confirmDeleteProd.name}"?
+                </h3>
+              </div>
+              <p className="text-xs text-stone-600 leading-relaxed">
+                This will permanently remove this handicraft listing from your workshop catalog.
+              </p>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setConfirmDeleteProd(null)}
+                  className="py-2 px-4 border border-stone-300 rounded-xl text-xs font-bold text-stone-700 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="py-2 px-5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Delete Craft
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Add / Edit Product Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 bg-stone-950/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-stone-950/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 border border-stone-200 shadow-xl space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-stone-100">
                 <h3 className="text-lg font-extrabold text-stone-900">
@@ -307,14 +364,14 @@ export default function SellerProductsPage() {
                 </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="text-stone-400 hover:text-stone-700 p-1"
+                  className="text-stone-400 hover:text-stone-700 p-1 cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               {formError && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>{formError}</span>
                 </div>
@@ -331,7 +388,7 @@ export default function SellerProductsPage() {
                     placeholder="e.g. Hand-Carved Teak Mask"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-[#FAF8F5] border border-stone-200 rounded-xl p-2.5 text-xs focus:ring-1 focus:ring-[#A3481D]"
+                    className="w-full bg-[#FAF8F5] border border-stone-200 rounded-xl p-2.5 text-xs"
                   />
                 </div>
 
@@ -347,7 +404,7 @@ export default function SellerProductsPage() {
                       placeholder="e.g. 2800"
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
-                      className="w-full bg-[#FAF8F5] border border-stone-200 rounded-xl p-2.5 text-xs focus:ring-1 focus:ring-[#A3481D]"
+                      className="w-full bg-[#FAF8F5] border border-stone-200 rounded-xl p-2.5 text-xs"
                     />
                   </div>
 
@@ -361,7 +418,7 @@ export default function SellerProductsPage() {
                       min="0"
                       value={stock}
                       onChange={(e) => setStock(e.target.value)}
-                      className="w-full bg-[#FAF8F5] border border-stone-200 rounded-xl p-2.5 text-xs focus:ring-1 focus:ring-[#A3481D]"
+                      className="w-full bg-[#FAF8F5] border border-stone-200 rounded-xl p-2.5 text-xs"
                     />
                   </div>
                 </div>
@@ -373,7 +430,7 @@ export default function SellerProductsPage() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full bg-[#FAF8F5] border border-stone-200 rounded-xl p-2.5 text-xs focus:ring-1 focus:ring-[#A3481D]"
+                    className="w-full bg-[#FAF8F5] border border-stone-200 rounded-xl p-2.5 text-xs"
                   >
                     {categories.map((c) => (
                       <option key={c._id} value={c._id}>
@@ -393,7 +450,7 @@ export default function SellerProductsPage() {
                     placeholder="Describe traditional materials, dimensions, and craft technique..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full bg-[#FAF8F5] border border-stone-200 rounded-xl p-2.5 text-xs focus:ring-1 focus:ring-[#A3481D]"
+                    className="w-full bg-[#FAF8F5] border border-stone-200 rounded-xl p-2.5 text-xs"
                   />
                 </div>
 
@@ -442,14 +499,14 @@ export default function SellerProductsPage() {
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="py-2.5 px-4 border border-stone-300 rounded-xl font-bold text-stone-600 hover:bg-stone-50"
+                    className="py-2.5 px-4 border border-stone-300 rounded-xl font-bold text-stone-600 hover:bg-stone-50 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="py-2.5 px-6 bg-[#A3481D] hover:bg-[#8B3B14] text-white font-bold rounded-xl shadow-xs disabled:opacity-50"
+                    className="py-2.5 px-6 bg-[#A3481D] hover:bg-[#8B3B14] text-white font-bold rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
                   >
                     {submitting ? 'Saving...' : 'Save Product'}
                   </button>

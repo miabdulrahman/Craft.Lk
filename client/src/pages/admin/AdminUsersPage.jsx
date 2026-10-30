@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Shield, Check, AlertCircle } from 'lucide-react';
+import { Search } from 'lucide-react';
 import AdminSidebar from '../../components/dashboard/AdminSidebar';
+import { useToast } from '../../context/ToastContext';
 import api from '../../services/api';
 
 export default function AdminUsersPage() {
+  const { showToast } = useToast();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState('');
+  const [searchFilter, setSearchFilter] = useState('');
 
   const fetchUsers = async () => {
     try {
@@ -31,14 +33,24 @@ export default function AdminUsersPage() {
     try {
       const res = await api.patch(`/admin/users/${user._id}`, { status: newStatus });
       if (res.data.success) {
-        setMsg(`Account for "${user.name}" is now ${newStatus}.`);
-        setTimeout(() => setMsg(''), 2500);
+        showToast(
+          `Account for "${user.name}" is now ${newStatus}.`,
+          newStatus === 'active' ? 'success' : 'info'
+        );
         fetchUsers();
       }
     } catch (err) {
-      alert(err.message || 'Status update failed');
+      showToast(err.message || 'Status update failed', 'error');
     }
   };
+
+  const filteredUsers = users.filter(
+    (u) =>
+      !searchFilter.trim() ||
+      u.name?.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      u.role?.toLowerCase().includes(searchFilter.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen flex bg-[#FAF8F5]">
@@ -47,24 +59,28 @@ export default function AdminUsersPage() {
       <main className="flex-1 p-6 sm:p-10 max-w-7xl overflow-y-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-8 border-b border-stone-200 gap-4">
           <div>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-[#A3481D] block mb-0.5">
+              Access Control
+            </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900">
-              User Accounts
+              User Accounts ({users.length})
             </h1>
             <p className="text-xs text-stone-500 mt-1">
               Manage customer, seller, and administrator accounts.
             </p>
           </div>
-          <span className="text-xs font-semibold text-stone-500">
-            Total users: {users.length}
-          </span>
-        </div>
 
-        {msg && (
-          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-            <Check className="h-4 w-4 text-emerald-600" />
-            <span>{msg}</span>
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Search name, email, or role..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="w-full bg-white border border-stone-200 rounded-xl py-2.5 pl-9 pr-4 text-xs"
+            />
+            <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-stone-400" />
           </div>
-        )}
+        </div>
 
         {loading ? (
           <div className="bg-white p-8 rounded-3xl border border-stone-200 animate-pulse h-64" />
@@ -83,7 +99,7 @@ export default function AdminUsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
-                  {users.map((u) => (
+                  {filteredUsers.map((u) => (
                     <tr key={u._id} className="hover:bg-stone-50 transition-colors">
                       <td className="p-4 pl-6 font-bold text-stone-900">
                         <div className="flex items-center gap-2.5">
@@ -96,7 +112,7 @@ export default function AdminUsersPage() {
                       <td className="p-4 text-stone-600">{u.email}</td>
                       <td className="p-4">
                         <span
-                          className={`px-2 py-0.5 rounded-md font-bold uppercase text-[10px] ${
+                          className={`px-2.5 py-0.5 rounded-md font-bold uppercase text-[10px] ${
                             u.role === 'admin'
                               ? 'bg-purple-100 text-purple-800'
                               : u.role === 'seller'
@@ -112,7 +128,7 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="p-4">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                             u.status === 'active'
                               ? 'bg-emerald-50 text-emerald-700'
                               : 'bg-rose-50 text-rose-700'
@@ -125,7 +141,7 @@ export default function AdminUsersPage() {
                         {u.email !== 'admin@craftlk.com' && (
                           <button
                             onClick={() => handleToggleStatus(u)}
-                            className={`py-1 px-3 rounded-lg text-[11px] font-bold transition-colors ${
+                            className={`py-1.5 px-3.5 rounded-xl text-[11px] font-bold transition-colors cursor-pointer ${
                               u.status === 'active'
                                 ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
                                 : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'

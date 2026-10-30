@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Package,
-  Calendar,
-  User,
-  MapPin,
-  Clock,
-  CheckCircle2,
-  AlertCircle
-} from 'lucide-react';
+import { Package, CheckCircle2 } from 'lucide-react';
 import SellerSidebar from '../../components/dashboard/SellerSidebar';
+import { useToast } from '../../context/ToastContext';
 import api from '../../services/api';
 import { getStatusBadgeClass } from '../customer/OrdersPage';
 
@@ -22,10 +15,11 @@ const ORDER_STATUS_OPTIONS = [
 ];
 
 export default function SellerOrdersPage() {
+  const { showToast } = useToast();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
-  const [statusMessage, setStatusMessage] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
 
   const fetchOrders = async () => {
     try {
@@ -52,16 +46,19 @@ export default function SellerOrdersPage() {
         orderStatus: newStatus
       });
       if (res.data.success) {
-        setStatusMessage(`Order updated to ${newStatus}`);
-        setTimeout(() => setStatusMessage(''), 3000);
+        showToast(`Order status updated to ${newStatus}`, 'success');
         fetchOrders();
       }
     } catch (err) {
-      alert(err.message || 'Failed to update order status');
+      showToast(err.message || 'Failed to update order status', 'error');
     } finally {
       setUpdatingId(null);
     }
   };
+
+  const filteredOrders = orders.filter(
+    (o) => statusFilter === 'All' || o.orderStatus === statusFilter
+  );
 
   return (
     <div className="min-h-screen flex bg-[#FAF8F5]">
@@ -70,27 +67,39 @@ export default function SellerOrdersPage() {
       <main className="flex-1 p-6 sm:p-10 max-w-7xl overflow-y-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-8 border-b border-stone-200 gap-4">
           <div>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-[#A3481D] block mb-0.5">
+              Fulfillment Center
+            </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900">
-              Customer Orders
+              Customer Orders ({orders.length})
             </h1>
             <p className="text-xs text-stone-500 mt-1">
-              Process incoming customer orders for your artisan creations.
+              Process incoming customer orders and update dispatch status.
             </p>
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            {['All', ...ORDER_STATUS_OPTIONS].map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                  statusFilter === st
+                    ? 'bg-[#A3481D] text-white shadow-2xs'
+                    : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+                }`}
+              >
+                {st}
+              </button>
+            ))}
           </div>
         </div>
 
-        {statusMessage && (
-          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span>{statusMessage}</span>
-          </div>
-        )}
-
         {loading ? (
           <div className="bg-white p-8 rounded-3xl border border-stone-200 animate-pulse h-64" />
-        ) : orders.length > 0 ? (
+        ) : filteredOrders.length > 0 ? (
           <div className="space-y-4">
-            {orders.map((ord) => (
+            {filteredOrders.map((ord) => (
               <div
                 key={ord._id}
                 className="bg-white p-6 rounded-3xl border border-stone-200/90 shadow-xs space-y-4"
@@ -111,12 +120,14 @@ export default function SellerOrdersPage() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-stone-500 font-medium">Status:</span>
+                    <span className="text-xs text-stone-500 font-semibold">
+                      Update Status:
+                    </span>
                     <select
                       value={ord.orderStatus}
                       disabled={updatingId === ord._id}
                       onChange={(e) => handleStatusChange(ord._id, e.target.value)}
-                      className={`text-xs font-bold py-1.5 px-3 rounded-xl border focus:outline-none ${getStatusBadgeClass(
+                      className={`text-xs font-bold py-1.5 px-3 rounded-xl border cursor-pointer ${getStatusBadgeClass(
                         ord.orderStatus
                       )}`}
                     >
@@ -133,18 +144,20 @@ export default function SellerOrdersPage() {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 text-xs">
                   {/* Items */}
                   <div className="md:col-span-7 space-y-2">
-                    <span className="font-bold text-stone-700 block">Ordered Items</span>
+                    <span className="font-bold text-stone-700 block">
+                      Ordered Items
+                    </span>
                     <div className="space-y-2">
                       {ord.items.map((it, idx) => (
                         <div
                           key={idx}
-                          className="flex items-center justify-between p-2.5 rounded-xl bg-stone-50 border border-stone-200"
+                          className="flex items-center justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-stone-200/80"
                         >
                           <div className="flex items-center gap-2.5">
                             <img
                               src={it.image || '/images/products/wooden_elephant.jpg'}
                               alt={it.name}
-                              className="w-8 h-8 rounded-lg object-cover"
+                              className="w-9 h-9 rounded-lg object-cover border border-stone-200"
                             />
                             <div>
                               <p className="font-bold text-stone-900 line-clamp-1">
@@ -155,7 +168,7 @@ export default function SellerOrdersPage() {
                               </p>
                             </div>
                           </div>
-                          <span className="font-bold text-[#A3481D]">
+                          <span className="font-extrabold text-[#A3481D]">
                             LKR {it.subtotal.toLocaleString()}
                           </span>
                         </div>
@@ -165,19 +178,21 @@ export default function SellerOrdersPage() {
 
                   {/* Customer Delivery info */}
                   <div className="md:col-span-5 space-y-1.5 bg-[#FAF8F5] p-4 rounded-2xl border border-stone-200/80">
-                    <span className="font-bold text-stone-800 block mb-1">
-                      Customer & Shipping
+                    <span className="font-extrabold text-stone-800 block mb-1">
+                      Customer & Delivery Address
                     </span>
-                    <p className="font-semibold text-stone-900">
+                    <p className="font-bold text-stone-900">
                       {ord.shippingAddress?.fullName}
                     </p>
                     <p className="text-stone-600">{ord.shippingAddress?.address}</p>
                     <p className="text-stone-600">
                       {ord.shippingAddress?.city}, {ord.shippingAddress?.district}
                     </p>
-                    <p className="text-stone-600">Phone: {ord.shippingAddress?.phone}</p>
-                    <div className="pt-2 border-t border-stone-200/80 flex justify-between font-extrabold text-stone-900 text-sm">
-                      <span>Order Subtotal</span>
+                    <p className="text-stone-600">
+                      Phone: {ord.shippingAddress?.phone}
+                    </p>
+                    <div className="pt-2 mt-2 border-t border-stone-200/80 flex justify-between font-extrabold text-stone-900 text-sm">
+                      <span>Workshop Earnings</span>
                       <span className="text-[#A3481D]">
                         LKR {ord.subtotal?.toLocaleString()}
                       </span>
@@ -191,7 +206,7 @@ export default function SellerOrdersPage() {
           <div className="text-center py-16 bg-white rounded-3xl border border-stone-200 p-8">
             <Package className="h-12 w-12 text-stone-300 mx-auto mb-3" />
             <h3 className="font-bold text-stone-900 text-base mb-1">
-              No orders received yet
+              No orders found
             </h3>
             <p className="text-xs text-stone-500">
               Orders placed for your artisan listings will appear here.

@@ -8,9 +8,12 @@ import {
   ArrowRight,
   Store,
   AlertCircle,
-  ShieldCheck
+  ShieldCheck,
+  Truck,
+  Sparkles
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
+import { useToast } from '../../context/ToastContext';
 
 export default function CartPage() {
   const {
@@ -20,11 +23,10 @@ export default function CartPage() {
     clearCart,
     totalItemCount,
     cartSubtotal,
-    shippingFee,
-    cartTotal,
     sellerGroups,
     isMultiVendor
   } = useCart();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   // If multi-vendor, user selects which seller to checkout first
@@ -37,15 +39,13 @@ export default function CartPage() {
     sellerGroups[0] ||
     null;
 
-  const checkoutSubtotal = isMultiVendor && activeGroup
-    ? activeGroup.subtotal
-    : cartSubtotal;
+  const checkoutSubtotal =
+    isMultiVendor && activeGroup ? activeGroup.subtotal : cartSubtotal;
 
   const checkoutShipping = 500;
   const checkoutTotal = checkoutSubtotal + checkoutShipping;
 
   const handleProceedToCheckout = () => {
-    // If multi-vendor, pass selected seller in navigation state
     if (isMultiVendor && activeGroup) {
       navigate('/checkout', { state: { sellerId: activeGroup.sellerId } });
     } else {
@@ -55,20 +55,20 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center bg-[#FAF8F5] p-4">
-        <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-stone-200 text-center shadow-xs">
-          <div className="w-16 h-16 bg-[#FAF2EC] text-[#A3481D] rounded-full flex items-center justify-center mx-auto mb-4">
-            <ShoppingBag className="h-8 w-8" />
+      <div className="min-h-[70vh] flex items-center justify-center bg-[#FAF8F5] heritage-pattern p-4">
+        <div className="max-w-md w-full bg-white p-8 sm:p-10 rounded-3xl border border-stone-200 text-center shadow-sm">
+          <div className="w-18 h-18 bg-[#FAF2EC] text-[#A3481D] rounded-3xl flex items-center justify-center mx-auto mb-5">
+            <ShoppingBag className="h-9 w-9" />
           </div>
-          <h2 className="text-xl font-extrabold text-stone-900 mb-2">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-stone-900 mb-2">
             Your Shopping Cart is Empty
           </h2>
-          <p className="text-xs text-stone-500 mb-6 leading-relaxed">
-            Looks like you haven't added any authentic Sri Lankan artisan crafts yet.
+          <p className="text-xs sm:text-sm text-stone-500 mb-7 leading-relaxed">
+            Discover authentic Sri Lankan batiks, woodcarvings, brassware, and terracotta pottery crafted by island artisans.
           </p>
           <Link
             to="/shop"
-            className="inline-flex items-center gap-2 py-3 px-6 bg-[#A3481D] hover:bg-[#8B3B14] text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
+            className="inline-flex items-center gap-2 py-3.5 px-7 bg-[#A3481D] hover:bg-[#8B3B14] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-sm shimmer-button"
           >
             <span>Explore Crafts Catalog</span>
             <ArrowRight className="h-4 w-4" />
@@ -79,71 +79,91 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] py-10">
+    <div className="min-h-screen bg-[#FAF8F5] py-10 sm:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 mb-8">
-          Shopping Cart ({totalItemCount})
-        </h1>
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+          <div>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-[#A3481D] block mb-1">
+              Artisan Basket
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900">
+              Shopping Cart ({totalItemCount}{' '}
+              {totalItemCount === 1 ? 'item' : 'items'})
+            </h1>
+          </div>
+          <Link
+            to="/shop"
+            className="text-xs font-bold text-[#A3481D] hover:underline"
+          >
+            ← Continue Browsing Crafts
+          </Link>
+        </div>
 
         {/* Multi-Vendor Checkout Notice Banner */}
         {isMultiVendor && (
-          <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
-            <div className="text-xs">
-              <p className="font-bold text-sm mb-0.5">
-                Multi-Vendor Marketplace Order Rule
+          <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-950 flex items-start gap-3.5 shadow-2xs">
+            <AlertCircle className="h-5 w-5 text-[#A3481D] shrink-0 mt-0.5" />
+            <div className="text-xs leading-relaxed">
+              <p className="font-extrabold text-sm mb-0.5 text-stone-900">
+                Multi-Vendor Artisan Fulfillment
               </p>
-              <p className="text-amber-800">
-                You have items from {sellerGroups.length} different artisan workshops in your cart. Each artisan packages and delivers their own handcrafted goods, so checkouts are processed one seller at a time. Please select which workshop's items you would like to proceed with.
+              <p className="text-stone-700">
+                Your cart includes creations from{' '}
+                <strong>{sellerGroups.length} independent artisan workshops</strong>.
+                Because each workshop packages and dispatches directly from their village studio, orders are checked out one workshop at a time. Select a workshop below to proceed.
               </p>
             </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: Items List (Panel 4) */}
+          {/* Left Column: Items List */}
           <div className="lg:col-span-8 space-y-6">
             {sellerGroups.map((group) => {
               const isSelected =
-                !isMultiVendor || selectedSellerId === group.sellerId;
+                !isMultiVendor || activeGroup?.sellerId === group.sellerId;
 
               return (
                 <div
                   key={group.sellerId}
                   className={`bg-white rounded-3xl border transition-all overflow-hidden ${
                     isSelected
-                      ? 'border-[#A3481D]/40 shadow-sm ring-1 ring-[#A3481D]/20'
-                      : 'border-stone-200/80 opacity-80'
+                      ? 'border-[#A3481D]/50 shadow-sm ring-2 ring-[#A3481D]/15'
+                      : 'border-stone-200/80 opacity-80 hover:opacity-100'
                   }`}
                 >
                   {/* Seller Header */}
-                  <div className="bg-[#FAF5EE] px-6 py-3.5 border-b border-stone-200/80 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Store className="h-4 w-4 text-[#A3481D]" />
-                      <span className="text-xs font-bold text-stone-800">
-                        {group.sellerName}
-                      </span>
-                      <span className="text-[11px] text-stone-400">
-                        ({group.items.length} items)
-                      </span>
+                  <div className="bg-[#FAF5EE] px-6 py-4 border-b border-stone-200/80 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-white border border-amber-200 flex items-center justify-center text-[#A3481D]">
+                        <Store className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs sm:text-sm font-extrabold text-stone-900 block">
+                          {group.sellerName}
+                        </span>
+                        <span className="text-[11px] text-stone-500">
+                          {group.items.length} handcrafted item(s) • Direct Studio Dispatch
+                        </span>
+                      </div>
                     </div>
 
                     {isMultiVendor && (
                       <button
                         onClick={() => setSelectedSellerId(group.sellerId)}
-                        className={`text-xs font-bold px-3 py-1 rounded-full transition-colors ${
+                        className={`text-xs font-bold px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-[#A3481D] text-white'
-                            : 'bg-stone-200 text-stone-700 hover:bg-stone-300'
+                            ? 'bg-[#A3481D] text-white shadow-xs'
+                            : 'bg-white border border-stone-300 text-stone-700 hover:border-[#A3481D]'
                         }`}
                       >
-                        {isSelected ? 'Selected for Checkout' : 'Select This Artisan'}
+                        {isSelected ? '✓ Selected for Checkout' : 'Checkout This Studio'}
                       </button>
                     )}
                   </div>
 
                   {/* Items in this shop */}
-                  <div className="divide-y divide-stone-100 p-4 sm:p-6 space-y-4 sm:space-y-0">
+                  <div className="divide-y divide-stone-100 p-4 sm:p-6">
                     {group.items.map((item) => (
                       <div
                         key={item.product._id}
@@ -151,14 +171,19 @@ export default function CartPage() {
                       >
                         {/* Thumbnail & Info */}
                         <div className="flex items-center gap-4">
-                          <img
-                            src={
-                              item.product.images?.[0] ||
-                              '/images/products/wooden_elephant.jpg'
-                            }
-                            alt={item.product.name}
-                            className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover bg-stone-100 border border-stone-200 shrink-0"
-                          />
+                          <Link
+                            to={`/products/${item.product._id}`}
+                            className="shrink-0 overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"
+                          >
+                            <img
+                              src={
+                                item.product.images?.[0] ||
+                                '/images/products/wooden_elephant.jpg'
+                              }
+                              alt={item.product.name}
+                              className="w-20 h-20 object-cover hover:scale-105 transition-transform"
+                            />
+                          </Link>
                           <div>
                             <Link
                               to={`/products/${item.product._id}`}
@@ -167,26 +192,29 @@ export default function CartPage() {
                               {item.product.name}
                             </Link>
                             <span className="text-xs font-extrabold text-[#A3481D] block mt-0.5">
-                              LKR {item.product.price?.toLocaleString()}
+                              LKR {item.product.price?.toLocaleString()} each
                             </span>
                             <span className="text-[11px] text-stone-400 block mt-0.5">
-                              Stock: {item.product.stock} available
+                              Line Total:{' '}
+                              <strong className="text-stone-700">
+                                LKR {(item.product.price * item.quantity).toLocaleString()}
+                              </strong>
                             </span>
                           </div>
                         </div>
 
                         {/* Quantity Stepper & Remove */}
-                        <div className="flex items-center gap-4 self-end sm:self-center">
-                          <div className="flex items-center border border-stone-200 rounded-xl bg-[#FAF8F5]">
+                        <div className="flex items-center gap-3 self-end sm:self-center">
+                          <div className="flex items-center border border-stone-200 rounded-xl bg-[#FAF8F5] overflow-hidden">
                             <button
                               onClick={() =>
                                 updateQuantity(item.product._id, item.quantity - 1)
                               }
-                              className="p-1.5 hover:bg-stone-200 transition-colors"
+                              className="p-2 hover:bg-stone-200 transition-colors cursor-pointer"
                             >
                               <Minus className="h-3.5 w-3.5 text-stone-600" />
                             </button>
-                            <span className="w-8 text-center text-xs font-bold text-stone-900">
+                            <span className="w-9 text-center text-xs font-extrabold text-stone-900">
                               {item.quantity}
                             </span>
                             <button
@@ -194,15 +222,18 @@ export default function CartPage() {
                                 updateQuantity(item.product._id, item.quantity + 1)
                               }
                               disabled={item.quantity >= item.product.stock}
-                              className="p-1.5 hover:bg-stone-200 disabled:opacity-40 transition-colors"
+                              className="p-2 hover:bg-stone-200 disabled:opacity-40 transition-colors cursor-pointer"
                             >
                               <Plus className="h-3.5 w-3.5 text-stone-600" />
                             </button>
                           </div>
 
                           <button
-                            onClick={() => removeFromCart(item.product._id)}
-                            className="p-2 text-stone-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                            onClick={() => {
+                              removeFromCart(item.product._id);
+                              showToast(`Removed "${item.product.name}" from cart`, 'info');
+                            }}
+                            className="p-2 text-stone-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Remove item"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -215,71 +246,75 @@ export default function CartPage() {
               );
             })}
 
-            <div className="flex justify-between items-center pt-2">
-              <Link
-                to="/shop"
-                className="text-xs font-bold text-[#A3481D] hover:underline"
-              >
-                ← Continue Shopping
-              </Link>
+            <div className="flex justify-end items-center pt-1">
               <button
-                onClick={clearCart}
-                className="text-xs font-semibold text-stone-400 hover:text-stone-600"
+                onClick={() => {
+                  clearCart();
+                  showToast('Cleared all items from cart', 'info');
+                }}
+                className="text-xs font-bold text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
               >
-                Clear entire cart
+                Clear Entire Cart
               </button>
             </div>
           </div>
 
-          {/* Right Column: Order Summary (Panel 4) */}
-          <div className="lg:col-span-4 bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/90 shadow-xs space-y-6">
+          {/* Right Column: Order Summary */}
+          <div className="lg:col-span-4 bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/90 shadow-xs space-y-6 lg:sticky lg:top-28">
             <h2 className="text-lg font-extrabold text-stone-900 pb-3 border-b border-stone-100">
               Order Summary
             </h2>
 
             {isMultiVendor && activeGroup && (
-              <div className="p-3 rounded-xl bg-[#FAF5EE] border border-amber-200/60 text-xs">
-                <span className="text-stone-500 block">Checking out with:</span>
-                <span className="font-bold text-stone-800">
+              <div className="p-3.5 rounded-2xl bg-[#FAF5EE] border border-amber-200/70 text-xs">
+                <span className="text-stone-500 block font-medium">
+                  Active Workshop Checkout:
+                </span>
+                <span className="font-extrabold text-[#A3481D] text-sm">
                   {activeGroup.sellerName}
                 </span>
               </div>
             )}
 
-            <div className="space-y-3 text-sm text-stone-600">
+            <div className="space-y-3 text-xs sm:text-sm text-stone-600">
               <div className="flex justify-between items-center">
-                <span>Subtotal</span>
+                <span>Items Subtotal</span>
                 <span className="font-bold text-stone-900">
                   LKR {checkoutSubtotal.toLocaleString()}
                 </span>
               </div>
 
               <div className="flex justify-between items-center">
-                <span>Standard Delivery (Islandwide)</span>
+                <span>Islandwide Courier Delivery</span>
                 <span className="font-bold text-stone-900">
                   LKR {checkoutShipping.toLocaleString()}
                 </span>
               </div>
 
-              <div className="border-t border-stone-100 pt-3 flex justify-between items-center text-base">
-                <span className="font-bold text-stone-900">Total</span>
+              <div className="border-t border-stone-100 pt-3.5 flex justify-between items-center text-base">
+                <span className="font-extrabold text-stone-900">Total Amount</span>
                 <span className="font-extrabold text-xl text-[#A3481D]">
                   LKR {checkoutTotal.toLocaleString()}
                 </span>
               </div>
             </div>
 
+            <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/70 flex items-center gap-2.5 text-xs text-stone-600">
+              <Truck className="h-4 w-4 text-[#A3481D] shrink-0" />
+              <span>Estimated Delivery: 2–4 business days islandwide</span>
+            </div>
+
             <button
               onClick={handleProceedToCheckout}
-              className="w-full py-3.5 bg-[#A3481D] hover:bg-[#8B3B14] active:scale-95 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition-all duration-200 shimmer-button cursor-pointer"
+              className="w-full py-4 bg-[#A3481D] hover:bg-[#8B3B14] active:scale-95 text-white text-sm font-bold rounded-2xl shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition-all duration-200 shimmer-button cursor-pointer"
             >
               <span>Proceed to Checkout</span>
               <ArrowRight className="h-4 w-4" />
             </button>
 
-            <div className="pt-2 text-center text-[11px] text-stone-400 flex items-center justify-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" />
-              <span>Safe & Secure Checkout • Direct Artisan Fulfillment</span>
+            <div className="pt-1 text-center text-[11px] text-stone-400 flex items-center justify-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span>Server-Verified Pricing • Direct Artisan Support</span>
             </div>
           </div>
         </div>
