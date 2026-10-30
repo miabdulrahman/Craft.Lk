@@ -3,14 +3,13 @@ import { Link } from 'react-router-dom';
 import {
   Package,
   Calendar,
-  Clock,
   ArrowRight,
-  AlertCircle,
-  XCircle,
   Store,
-  CheckCircle2
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import api from '../../services/api';
+import { useToast } from '../../context/ToastContext';
 
 export const getStatusBadgeClass = (status) => {
   switch (status) {
@@ -30,10 +29,12 @@ export const getStatusBadgeClass = (status) => {
 };
 
 export default function OrdersPage() {
+  const { showToast } = useToast();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState(null);
-  const [message, setMessage] = useState('');
+  const [confirmCancelOrder, setConfirmCancelOrder] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('All');
 
   const fetchOrders = async () => {
     try {
@@ -53,10 +54,9 @@ export default function OrdersPage() {
     fetchOrders();
   }, []);
 
-  const handleCancelOrder = async (orderId) => {
-    if (!window.confirm('Are you sure you want to cancel this order? Stock will be restored.')) {
-      return;
-    }
+  const handleConfirmCancel = async () => {
+    if (!confirmCancelOrder) return;
+    const orderId = confirmCancelOrder._id;
 
     try {
       setCancellingId(orderId);
@@ -64,21 +64,37 @@ export default function OrdersPage() {
         reason: 'Cancelled by customer'
       });
       if (res.data.success) {
-        setMessage('Order cancelled successfully.');
+        showToast(
+          `Order ${confirmCancelOrder.orderNumber} cancelled and stock restored.`,
+          'info'
+        );
+        setConfirmCancelOrder(null);
         fetchOrders();
       }
     } catch (err) {
-      alert(err.message || 'Failed to cancel order.');
+      showToast(err.message || 'Failed to cancel order.', 'error');
     } finally {
       setCancellingId(null);
     }
   };
 
+  const filteredOrders = orders.filter((o) => {
+    if (activeFilter === 'All') return true;
+    if (activeFilter === 'Active')
+      return ['Pending', 'Confirmed', 'Processing', 'Shipped'].includes(
+        o.orderStatus
+      );
+    return o.orderStatus === activeFilter;
+  });
+
   return (
     <div className="min-h-screen bg-[#FAF8F5] py-10">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-[#A3481D] block mb-1">
+              Customer Portal
+            </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900">
               My Purchase History
             </h1>
@@ -94,10 +110,22 @@ export default function OrdersPage() {
           </Link>
         </div>
 
-        {message && (
-          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span>{message}</span>
+        {/* Status Filter Pills */}
+        {orders.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 scrollbar-none">
+            {['All', 'Active', 'Delivered', 'Cancelled'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveFilter(tab)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeFilter === tab
+                    ? 'bg-[#A3481D] text-white shadow-xs'
+                    : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
         )}
 
@@ -110,9 +138,9 @@ export default function OrdersPage() {
               />
             ))}
           </div>
-        ) : orders.length > 0 ? (
+        ) : filteredOrders.length > 0 ? (
           <div className="space-y-5">
-            {orders.map((order) => {
+            {filteredOrders.map((order) => {
               const canCancel =
                 order.orderStatus === 'Pending' ||
                 order.orderStatus === 'Confirmed';
@@ -120,12 +148,12 @@ export default function OrdersPage() {
               return (
                 <div
                   key={order._id}
-                  className="bg-white p-6 rounded-3xl border border-stone-200/90 shadow-xs hover:shadow-md transition-shadow"
+                  className="bg-white p-6 rounded-3xl border border-stone-200/90 shadow-xs hover:shadow-md transition-all"
                 >
                   {/* Order Top Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-stone-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[#FAF2EC] text-[#A3481D] flex items-center justify-center font-bold text-xs">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-11 h-11 rounded-2xl bg-[#FAF2EC] text-[#A3481D] flex items-center justify-center font-bold text-xs">
                         <Package className="h-5 w-5" />
                       </div>
                       <div>
@@ -149,9 +177,8 @@ export default function OrdersPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      {/* Status Badge */}
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${getStatusBadgeClass(
+                        className={`px-3.5 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${getStatusBadgeClass(
                           order.orderStatus
                         )}`}
                       >
@@ -162,10 +189,12 @@ export default function OrdersPage() {
 
                   {/* Shop Info & Thumbnails */}
                   <div className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       <div className="flex items-center gap-2 text-xs font-bold text-stone-700">
                         <Store className="h-4 w-4 text-[#A3481D]" />
-                        <span>Artisan: {order.shop?.shopName || 'Artisan Workshop'}</span>
+                        <span>
+                          Artisan: {order.shop?.shopName || 'Artisan Workshop'}
+                        </span>
                         <span className="text-stone-400 font-normal">
                           ({order.shop?.city}, {order.shop?.district})
                         </span>
@@ -176,7 +205,7 @@ export default function OrdersPage() {
                         {order.items.map((it, idx) => (
                           <div
                             key={idx}
-                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-stone-50 border border-stone-200 text-xs"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FAF8F5] border border-stone-200/80 text-xs"
                           >
                             <img
                               src={it.image || '/images/products/wooden_elephant.jpg'}
@@ -186,7 +215,9 @@ export default function OrdersPage() {
                             <span className="font-semibold text-stone-800">
                               {it.name}
                             </span>
-                            <span className="text-stone-400">× {it.quantity}</span>
+                            <span className="text-stone-400 font-bold">
+                              × {it.quantity}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -194,16 +225,16 @@ export default function OrdersPage() {
 
                     {/* Order Total */}
                     <div className="sm:text-right">
-                      <span className="text-xs text-stone-400 block font-medium">
+                      <span className="text-[11px] uppercase tracking-wider text-stone-400 block font-bold">
                         Order Total
                       </span>
                       <span className="text-lg font-extrabold text-[#A3481D]">
                         LKR {order.total?.toLocaleString()}
                       </span>
-                      <span className="text-[11px] text-stone-400 block uppercase">
+                      <span className="text-[11px] text-stone-400 block uppercase font-medium">
                         {order.paymentMethod === 'cod'
                           ? 'Cash on Delivery'
-                          : 'Simulated Card'}
+                          : 'Online Sandbox'}
                       </span>
                     </div>
                   </div>
@@ -212,19 +243,19 @@ export default function OrdersPage() {
                   <div className="pt-4 border-t border-stone-100 flex items-center justify-between gap-4">
                     <Link
                       to={`/orders/${order._id}`}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[#A3481D] hover:underline"
+                      className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#A3481D] hover:underline"
                     >
-                      <span>View Full Breakdown</span>
+                      <span>Track Status & View Receipt</span>
                       <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
 
                     {canCancel && (
                       <button
-                        onClick={() => handleCancelOrder(order._id)}
+                        onClick={() => setConfirmCancelOrder(order)}
                         disabled={cancellingId === order._id}
-                        className="py-1.5 px-3 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
+                        className="py-1.5 px-3.5 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
                       >
-                        {cancellingId === order._id ? 'Cancelling...' : 'Cancel Order'}
+                        Cancel Order
                       </button>
                     )}
                   </div>
@@ -236,10 +267,10 @@ export default function OrdersPage() {
           <div className="text-center py-16 bg-white rounded-3xl border border-stone-200 shadow-xs p-8">
             <Package className="h-12 w-12 text-stone-300 mx-auto mb-3" />
             <h3 className="text-base font-bold text-stone-800 mb-1">
-              No orders placed yet
+              No orders found
             </h3>
             <p className="text-xs text-stone-500 mb-6">
-              When you purchase authentic crafts, you can follow their order status here.
+              When you purchase authentic crafts, you can track their live fulfillment status here.
             </p>
             <Link
               to="/shop"
@@ -250,6 +281,50 @@ export default function OrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Cancel Order Confirmation Modal */}
+      {confirmCancelOrder && (
+        <div className="fixed inset-0 z-50 bg-stone-950/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 border border-stone-200 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5 text-rose-600">
+                <AlertTriangle className="h-5 w-5" />
+                <h3 className="font-extrabold text-stone-900 text-base">
+                  Cancel Order {confirmCancelOrder.orderNumber}?
+                </h3>
+              </div>
+              <button
+                onClick={() => setConfirmCancelOrder(null)}
+                className="text-stone-400 hover:text-stone-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-xs text-stone-600 leading-relaxed">
+              Are you sure you want to cancel this order? Reserved inventory will be automatically restored to the artisan's workshop.
+            </p>
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmCancelOrder(null)}
+                className="py-2 px-4 border border-stone-300 rounded-xl text-xs font-bold text-stone-700 hover:bg-stone-50 cursor-pointer"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                disabled={cancellingId === confirmCancelOrder._id}
+                onClick={handleConfirmCancel}
+                className="py-2 px-5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                {cancellingId === confirmCancelOrder._id
+                  ? 'Cancelling...'
+                  : 'Yes, Cancel Order'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

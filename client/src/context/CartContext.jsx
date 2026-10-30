@@ -12,6 +12,15 @@ export const CartProvider = ({ children }) => {
     }
   });
 
+  const [wishlistItems, setWishlistItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('craftlk_wishlist');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
   useEffect(() => {
     try {
       localStorage.setItem('craftlk_cart', JSON.stringify(items));
@@ -19,6 +28,14 @@ export const CartProvider = ({ children }) => {
       console.error('Error saving cart to localStorage:', e);
     }
   }, [items]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('craftlk_wishlist', JSON.stringify(wishlistItems));
+    } catch (e) {
+      console.error('Error saving wishlist to localStorage:', e);
+    }
+  }, [wishlistItems]);
 
   const addToCart = (product, quantity = 1) => {
     setItems((prevItems) => {
@@ -87,6 +104,26 @@ export const CartProvider = ({ children }) => {
     setItems((prev) => prev.filter((item) => item.sellerId !== sellerId));
   };
 
+  // Wishlist helpers
+  const isInWishlist = (productId) => {
+    return wishlistItems.some((p) => p._id === productId);
+  };
+
+  const toggleWishlist = (product) => {
+    const exists = isInWishlist(product._id);
+    if (exists) {
+      setWishlistItems((prev) => prev.filter((p) => p._id !== product._id));
+      return false;
+    } else {
+      setWishlistItems((prev) => [product, ...prev]);
+      return true;
+    }
+  };
+
+  const removeFromWishlist = (productId) => {
+    setWishlistItems((prev) => prev.filter((p) => p._id !== productId));
+  };
+
   // Group items by seller shop
   const groupedBySeller = items.reduce((groups, item) => {
     const key = item.sellerId || 'unknown';
@@ -129,7 +166,11 @@ export const CartProvider = ({ children }) => {
         shippingFee,
         cartTotal,
         sellerGroups,
-        isMultiVendor
+        isMultiVendor,
+        wishlistItems,
+        isInWishlist,
+        toggleWishlist,
+        removeFromWishlist
       }}
     >
       {children}

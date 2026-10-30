@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 
@@ -42,9 +42,17 @@ import AdminUsersPage from './pages/admin/AdminUsersPage';
 
 import { ToastProvider } from './context/ToastContext';
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [pathname]);
+  return null;
+}
+
 // Standard Public Layout with Header and Footer
 const MainLayout = () => (
-  <div className="flex flex-col min-h-screen">
+  <div className="flex flex-col min-h-screen bg-[#FAF8F5]">
     <Navbar />
     <main className="flex-1">
       <Outlet />
@@ -56,145 +64,146 @@ const MainLayout = () => (
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AuthProvider>
         <ToastProvider>
           <CartProvider>
-          <Routes>
-            {/* Main Storefront Routes */}
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/shop" element={<ShopPage />} />
-              <Route path="/products/:id" element={<ProductDetailPage />} />
-              <Route path="/categories" element={<CategoriesPage />} />
-              <Route path="/artisans" element={<ArtisansPage />} />
-              <Route path="/artisans/:id" element={<ArtisanDetailPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/cart" element={<CartPage />} />
+            <Routes>
+              {/* Main Storefront Routes */}
+              <Route element={<MainLayout />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/shop" element={<ShopPage />} />
+                <Route path="/products/:id" element={<ProductDetailPage />} />
+                <Route path="/categories" element={<CategoriesPage />} />
+                <Route path="/artisans" element={<ArtisansPage />} />
+                <Route path="/artisans/:id" element={<ArtisanDetailPage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/cart" element={<CartPage />} />
 
-              {/* Customer Protected Routes with Main Header/Footer */}
+                {/* Customer Protected Routes with Main Header/Footer */}
+                <Route
+                  path="/checkout"
+                  element={
+                    <ProtectedRoute allowedRoles={['customer', 'seller', 'admin']}>
+                      <CheckoutPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/my-orders"
+                  element={
+                    <ProtectedRoute allowedRoles={['customer', 'seller', 'admin']}>
+                      <OrdersPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/orders/:id"
+                  element={
+                    <ProtectedRoute allowedRoles={['customer', 'seller', 'admin']}>
+                      <OrderDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute allowedRoles={['customer', 'seller', 'admin']}>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
+
+              {/* Auth Page without default header/footer for split screen design */}
+              <Route path="/auth" element={<AuthPage />} />
+
+              {/* Seller Dashboard Routes (Dedicated Dark Sidebar Layout) */}
               <Route
-                path="/checkout"
+                path="/seller/dashboard"
                 element={
-                  <ProtectedRoute allowedRoles={['customer', 'seller', 'admin']}>
-                    <CheckoutPage />
+                  <ProtectedRoute allowedRoles={['seller', 'admin']}>
+                    <SellerDashboardPage />
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/my-orders"
+                path="/seller/products"
                 element={
-                  <ProtectedRoute allowedRoles={['customer', 'seller', 'admin']}>
-                    <OrdersPage />
+                  <ProtectedRoute allowedRoles={['seller', 'admin']}>
+                    <SellerProductsPage />
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/orders/:id"
+                path="/seller/orders"
                 element={
-                  <ProtectedRoute allowedRoles={['customer', 'seller', 'admin']}>
-                    <OrderDetailPage />
+                  <ProtectedRoute allowedRoles={['seller', 'admin']}>
+                    <SellerOrdersPage />
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/profile"
+                path="/seller/shop-profile"
                 element={
-                  <ProtectedRoute allowedRoles={['customer', 'seller', 'admin']}>
-                    <ProfilePage />
+                  <ProtectedRoute allowedRoles={['seller', 'admin']}>
+                    <SellerShopProfilePage />
                   </ProtectedRoute>
                 }
               />
 
-              <Route path="*" element={<NotFoundPage />} />
-            </Route>
-
-            {/* Auth Page without default header/footer for split screen design */}
-            <Route path="/auth" element={<AuthPage />} />
-
-            {/* Seller Dashboard Routes (Dedicated Dark Sidebar Layout) */}
-            <Route
-              path="/seller/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={['seller', 'admin']}>
-                  <SellerDashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/seller/products"
-              element={
-                <ProtectedRoute allowedRoles={['seller', 'admin']}>
-                  <SellerProductsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/seller/orders"
-              element={
-                <ProtectedRoute allowedRoles={['seller', 'admin']}>
-                  <SellerOrdersPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/seller/shop-profile"
-              element={
-                <ProtectedRoute allowedRoles={['seller', 'admin']}>
-                  <SellerShopProfilePage />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Admin Dashboard Routes (Dedicated Dark Sidebar Layout) */}
-            <Route
-              path="/admin/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminDashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/sellers"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminSellersPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/products"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminProductsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/categories"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminCategoriesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/orders"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminOrdersPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/users"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminUsersPage />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
+              {/* Admin Dashboard Routes (Dedicated Dark Sidebar Layout) */}
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminDashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/sellers"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminSellersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/products"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminProductsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/categories"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminCategoriesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/orders"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminOrdersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminUsersPage />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
           </CartProvider>
         </ToastProvider>
       </AuthProvider>
