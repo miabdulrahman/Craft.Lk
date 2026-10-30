@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" fill="none">
+  <!-- Stylized Lotus / Artisan Craft Petals Icon -->
+  <g transform="translate(4, 4)">
+    <path d="M16 2 C16 2, 22 10, 22 17 C22 22, 18 26, 16 26 C14 26, 10 22, 10 17 C10 10, 16 2, 16 2 Z" fill="#A3481D" />
+    <path d="M16 12 C16 12, 24 14, 28 20 C30 23, 28 27, 24 28 C19 29, 16 24, 16 21 Z" fill="#D97706" opacity="0.9" />
+    <path d="M16 12 C16 12, 8 14, 4 20 C2 23, 4 27, 8 28 C13 29, 16 24, 16 21 Z" fill="#D97706" opacity="0.9" />
+    <circle cx="16" cy="18" r="3.5" fill="#FBF4EE" stroke="#A3481D" stroke-width="1.5" />
+  </g>
+  <!-- CraftLK Wordmark -->
+  <text x="44" y="27" font-family="'Outfit', 'Plus Jakarta Sans', sans-serif" font-size="22" font-weight="700" fill="#1C1917" letter-spacing="-0.5">Craft<tspan fill="#A3481D">LK</tspan></text>
+</svg>
